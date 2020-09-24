@@ -1,0 +1,1 @@
+python download_weights.py 1MGXAP_XD_w4OExPP10UHsejWrMww8Tu7 trained_weights_final.h5
