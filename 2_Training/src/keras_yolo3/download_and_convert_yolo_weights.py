@@ -1,7 +1,7 @@
 # -------------------------------------------
 #   USAGE
 # -------------------------------------------
-# python download_and_convert_yolo_weights.py
+# python download_and_convert_yolo_weights.py --download_folder C:\Users\psilva\Documents\GitHub\train-your-own-yolo\2_Training\src\keras_yolo3\downloads --is_tiny True
 
 # -----------------------------
 #   IMPORTS
@@ -24,7 +24,7 @@ root_folder = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 download_folder = os.path.join(root_folder, "2_Training", "src", "keras_yolo3")
 data_folder = os.path.join(root_folder, "Data")
 model_folder = os.path.join(data_folder, "Model_Weights")
-download_script = os.path.join(model_folder, "Download_Weights.py")
+download_script = os.path.join(model_folder, "download_weights.py")
 
 
 # -----------------------------

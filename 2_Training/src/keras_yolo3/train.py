@@ -167,9 +167,9 @@ def data_generator_wrapper(annotation_lines, batch_size, input_shape, anchors, n
 
 
 def main():
-    annotation_path = "data_train.txt"
+    annotation_path = "model_data/data_train.txt"
     log_dir = "logs/003/"
-    classes_path = "data_classes.txt"
+    classes_path = "model_data/data_classes.txt"
     anchors_path = "model_data/yolo_anchors.txt"
     class_names = get_classes(classes_path)
     num_classes = len(class_names)
