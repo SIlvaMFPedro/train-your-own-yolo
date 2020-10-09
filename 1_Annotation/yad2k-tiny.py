@@ -6,7 +6,7 @@
 # -----------------------------
 #   USAGE
 # -----------------------------
-# python yad2k.py
+# python yad2k-tiny.py
 
 # -----------------------------
 #   IMPORTS
@@ -19,7 +19,7 @@ import os
 import numpy as np
 from collections import defaultdict
 from keras import backend as K
-from keras.layers import Conv2D, GlobalAveragePooling2D, Input, Lambda, MaxPooling2D, Input, Lambda, MaxPooling2D
+from keras.layers import Conv2D, GlobalAveragePooling2D, Input, Lambda, Reshape, UpSampling2D, MaxPooling2D
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.merge import concatenate
 from keras.layers.normalization import BatchNormalization
@@ -89,6 +89,7 @@ def main(args):
         image_width = int(cfg_parser['net_0']['width'])
     prev_layer = Input(shape=(image_height, image_width, 3))
     all_layers = [prev_layer]
+    outputs = []
     weight_decay = float(cfg_parser['net_0']['decay']) if 'net_0' in cfg_parser.sections() else 5e-4
     count = 0
     for section in cfg_parser.sections():
@@ -178,6 +179,21 @@ def main(args):
         elif section.startswith('region'):
             with open('{}_anchors.txt'.format(output_root), 'w') as f:
                 print(cfg_parser[section]['anchors'], file=f)
+        elif section.startswith('upsample'):
+            stride = int(cfg_parser[section]['stride'])
+            all_layers.append(UpSampling2D(size=(stride, stride))(prev_layer))
+            prev_layer = all_layers[-1]
+        elif section.startswith('yolo'):
+            classes = int(cfg_parser[section]['classes'])
+            # num = int(cfg_parser[section]['num'])
+            # mask = int(cfg_parser[section]['mask'])
+            n1, n2 = int(prev_layer.shape[1]), int(prev_layer.shape[2])
+            n3 = 3
+            n4 = (4 + 1 + classes)
+            yolo = Reshape((n1, n2, n3, n4))(prev_layer)
+            all_layers.append(yolo)
+            prev_layer = all_layers[-1]
+            outputs.append(len(all_layers)-1)
         elif section.startswith('net') or section.startswith('cost') or section.startswith('softmax'):
             pass  # Configs not currently handled during model definition.
         else:

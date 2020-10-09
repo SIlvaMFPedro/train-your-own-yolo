@@ -1,12 +1,12 @@
 # =============================================================================
-# Reads Darknet19 config and weights and creates Keras model with TF backend.
-# Currently only supports layers in Darknet19 config.
+# Reads Darknet53 config and weights and creates Keras model with TF backend.
+# Currently only supports layers in Darknet53 config.
 # =============================================================================
 
 # -----------------------------
 #   USAGE
 # -----------------------------
-# python yad2k.py
+# python yad2k-yolov3.py
 
 # -----------------------------
 #   IMPORTS
@@ -19,14 +19,13 @@ import os
 import numpy as np
 from collections import defaultdict
 from keras import backend as K
-from keras.layers import Conv2D, GlobalAveragePooling2D, Input, Lambda, MaxPooling2D, Input, Lambda, MaxPooling2D
+from keras.layers import Conv2D, GlobalAveragePooling2D, Input, Reshape, ZeroPadding2D, UpSampling2D, Activation
 from keras.layers.advanced_activations import LeakyReLU
-from keras.layers.merge import concatenate
+from keras.layers.merge import concatenate, add
 from keras.layers.normalization import BatchNormalization
 from keras.models import Model
 from keras.regularizers import l2
 from keras.utils.vis_utils import plot_model as plot
-from yad2k.models.keras_yolo import space_to_depth_x2, space_to_depth_x2_output_shape
 
 # Construct the argument parser and parse the arguments
 parser = argparse.ArgumentParser(description='Yet Another Darknet To Keras Converter.')
@@ -68,19 +67,19 @@ def main(args):
     assert config_path.endswith('.cfg'), '{} is not a .cfg file'.format(config_path)
     assert weights_path.endswith('.weights'), '{} is not a .weights file'.format(weights_path)
     output_path = os.path.expanduser(args.output_path)
-    assert output_path.endswith('.h5'), '{} output path is not a .h5 file'.format(output_path)
+    assert output_path.endswith('.h5'), 'output path {} is not a .h5 file'.format(output_path)
     output_root = os.path.splitext(output_path)[0]
-    # Load weights and config
+    # Load weights and config.
     print('[INFO] Loading weights...')
     weights_file = open(weights_path, 'rb')
-    weights_header = np.ndarray(shape=(4, ), dtype='int32', buffer=weights_file.read(16))
-    print('Weights header: ', weights_header)
-    # Parse darknet config
-    print('[INFO] Parsing Darknet Config...')
+    weights_header = np.ndarray(shape=(5,), dtype='int32', buffer=weights_file.read(20))
+    print('[INFO] Weights Header: ', weights_header)
+    # Check Darknet Configuration
+    print('[INFO] Parsing Darknet Configuration...')
     unique_config_file = unique_config_sections(config_path)
     cfg_parser = configparser.ConfigParser()
     cfg_parser.read_file(unique_config_file)
-    # Create Keras Model
+    # Create Keras model
     print('[INFO] Creating Keras Model...')
     if args.fully_convolutional:
         image_height, image_width = None, None
@@ -89,8 +88,10 @@ def main(args):
         image_width = int(cfg_parser['net_0']['width'])
     prev_layer = Input(shape=(image_height, image_width, 3))
     all_layers = [prev_layer]
+    outputs = []
     weight_decay = float(cfg_parser['net_0']['decay']) if 'net_0' in cfg_parser.sections() else 5e-4
     count = 0
+    # Parse sections in the configuration file
     for section in cfg_parser.sections():
         print('[INFO] Parsing section {}'.format(section))
         if section.startswith('convolutional'):
@@ -100,37 +101,40 @@ def main(args):
             pad = int(cfg_parser[section]['pad'])
             activation = cfg_parser[section]['activation']
             batch_normalize = 'batch_normalize' in cfg_parser[section]
-            # padding='same' is equivalent to Darknet pad=1
-            padding = 'same' if pad == 1 else 'valid'
             # Setting weights.
-            # Darknet serializes convolutional weights as:
-            # [bias/beta, [gamma, mean, variance], conv_weights]
+            # Darknet serializes convolutional weights as: [bias/beta, [gamma, mean, variance], conv_weights]
             prev_layer_shape = K.int_shape(prev_layer)
             weights_shape = (size, size, prev_layer_shape[-1], filters)
             darknet_w_shape = (filters, weights_shape[2], size, size)
             weights_size = np.product(weights_shape)
-            print('conv2d', 'bn' if batch_normalize else ' ', activation, weights_shape)
-            conv_bias = np.ndarray(shape=(filters, ), dtype='float32', buffer=weights_file.read(filters * 4))
+            print('conv2d', 'bn' if batch_normalize else '  ', activation, weights_shape)
+            conv_bias = np.ndarray(shape=(filters,), dtype='float32', buffer=weights_file.read(filters * 4))
             count += filters
             if batch_normalize:
                 bn_weights = np.ndarray(shape=(3, filters), dtype='float32', buffer=weights_file.read(filters * 12))
                 count += 3 * filters
-                bn_weight_list = [bn_weights[0],    # scale gamma
-                                  conv_bias,        # shift beta
-                                  bn_weights[1],    # running mean
-                                  bn_weights[2]]    # running var
-            conv_weights = np.ndarray(shape=darknet_w_shape, dtype='float32', buffer=weights_file.read(weights_size*4))
+                bn_weight_list = [
+                    bn_weights[0],  # scale gamma
+                    conv_bias,      # shift beta
+                    bn_weights[1],  # running mean
+                    bn_weights[2]]  # running var
+            conv_weights = np.ndarray(shape=darknet_w_shape, dtype='float32',
+                                      buffer=weights_file.read(weights_size * 4))
             count += weights_size
             # DarkNet conv_weights are serialized Caffe-style: (out_dim, in_dim, height, width)
             # We would like to set these to Tensorflow order: (height, width, in_dim, out_dim)
             conv_weights = np.transpose(conv_weights, [2, 3, 1, 0])
             conv_weights = [conv_weights] if batch_normalize else [conv_weights, conv_bias]
-            # Handle activation
+            # Handle activation.
             act_fn = None
             if activation == 'leaky':
-                pass    # Add advanced activation later
+                pass  # Add advanced activation later.
             elif activation != 'linear':
-                raise ValueError("Unknown activation function '{}' in section '{}'".format(activation, section))
+                raise ValueError('[ERROR] Unknown activation function `{}` in section {}'.format(activation, section))
+            padding = 'same' if pad == 1 and stride == 1 else 'valid'
+            # Adjust padding model for darknet.
+            if stride == 2:
+                prev_layer = ZeroPadding2D(((1, 0), (1, 0)))(prev_layer)
             # Create Conv2D layer
             conv_layer = (Conv2D(filters, (size, size), strides=(stride, stride), kernel_regularizer=l2(weight_decay),
                                  use_bias=not batch_normalize, weights=conv_weights, activation=act_fn,
@@ -144,14 +148,9 @@ def main(args):
                 act_layer = LeakyReLU(alpha=0.1)(prev_layer)
                 prev_layer = act_layer
                 all_layers.append(act_layer)
-        elif section.startswith('maxpool'):
-            size = int(cfg_parser[section]['size'])
-            stride = int(cfg_parser[section]['stride'])
-            all_layers.append(MaxPooling2D(padding='same', pool_size=(size, size), strides=(stride, stride))(prev_layer))
-            prev_layer = all_layers[-1]
         elif section.startswith('avgpool'):
             if cfg_parser.items(section):
-                raise ValueError('{} with params unsupported.'.format(section))
+                raise ValueError('[ERROR] {} with params unsupported.'.format(section))
             all_layers.append(GlobalAveragePooling2D()(prev_layer))
             prev_layer = all_layers[-1]
         elif section.startswith('route'):
@@ -166,37 +165,47 @@ def main(args):
                 skip_layer = layers[0]  # only one layer to route
                 all_layers.append(skip_layer)
                 prev_layer = skip_layer
-        elif section.startswith('reorg'):
-            block_size = int(cfg_parser[section]['stride'])
-            assert block_size == 2, 'Only reorg with stride 2 supported.'
-            all_layers.append(
-                Lambda(
-                    space_to_depth_x2,
-                    output_shape=space_to_depth_x2_output_shape,
-                    name='space_to_depth_x2')(prev_layer))
+        elif section.startswith('shortcut'):
+            ids = [int(i) for i in cfg_parser[section]['from'].split(',')][0]
+            activation = cfg_parser[section]['activation']
+            shortcut = add([all_layers[ids], prev_layer])
+            if activation == 'linear':
+                shortcut = Activation('linear')(shortcut)
+            all_layers.append(shortcut)
             prev_layer = all_layers[-1]
-        elif section.startswith('region'):
-            with open('{}_anchors.txt'.format(output_root), 'w') as f:
-                print(cfg_parser[section]['anchors'], file=f)
-        elif section.startswith('net') or section.startswith('cost') or section.startswith('softmax'):
+        elif section.startswith('upsample'):
+            stride = int(cfg_parser[section]['stride'])
+            all_layers.append(UpSampling2D(size=(stride, stride))(prev_layer))
+            prev_layer = all_layers[-1]
+        elif section.startswith('yolo'):
+            classes = int(cfg_parser[section]['classes'])
+            # num = int(cfg_parser[section]['num'])
+            # mask = int(cfg_parser[section]['mask'])
+            n1, n2 = int(prev_layer.shape[1]), int(prev_layer.shape[2])
+            n3 = 3
+            n4 = (4 + 1 + classes)
+            yolo = Reshape((n1, n2, n3, n4))(prev_layer)
+            all_layers.append(yolo)
+            prev_layer = all_layers[-1]
+            outputs.append(len(all_layers) - 1)
+        elif section.startswith('net'):
             pass  # Configs not currently handled during model definition.
         else:
-            raise ValueError('Unsupported section header type: {}'.format(section))
-
-    # Create and save model
-    model = Model(inputs=all_layers[0], outputs=all_layers[-1])
+            raise ValueError('[ERROR] Unsupported section header type: {}'.format(section))
+    # Create and save model.
+    model = Model(inputs=all_layers[0], outputs=[all_layers[i] for i in outputs])
     print(model.summary())
     model.save('{}'.format(output_path))
-    print('[INFO] Saved Keras Model to {}'.format(output_path))
-    # Check to see if all weights have been read
+    print('Saved Keras model to {}'.format(output_path))
+    # Check to see if all weights have been read.
     remaining_weights = len(weights_file.read()) / 4
     weights_file.close()
-    print('[INFO] Read {} of {} from Darknet Weights.'.format(count, count + remaining_weights))
+    print('Read {} of {} from Darknet weights.'.format(count, count + remaining_weights))
     if remaining_weights > 0:
-        print('[INFO] Warning: {} unused weights'.format(remaining_weights))
+        print('Warning: {} unused weights'.format(remaining_weights))
     if args.plot_model:
         plot(model, to_file='{}.png'.format(output_root), show_shapes=True)
-        print('[INFO] Saved model plot to {}.png'.format(output_root))
+        print('Saved model plot to {}.png'.format(output_root))
 
 
 # -----------------------------
