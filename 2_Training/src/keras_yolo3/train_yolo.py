@@ -54,14 +54,17 @@ utils_path = os.path.join(get_parent_dir(1), "Utils")
 sys.path.append(utils_path)
 keras_path = os.path.join(src_path, "keras_yolo3")
 Data_Folder = os.path.join(get_parent_dir(1), "Data")
-Image_Folder = os.path.join(Data_Folder, "Source_Images", "Training_Images")
+# Image_Folder = os.path.join(Data_Folder, "src/keras_yolo3/model_data/source_images", "Training_Images")
+Image_Folder = os.path.join(get_parent_dir(1), "model_data/source_images/train_images")
 VoTT_Folder = os.path.join(Image_Folder, "vott-csv-export")
 YOLO_filename = os.path.join(VoTT_Folder, "data_train.txt")
 Model_Folder = os.path.join(Data_Folder, "Model_Weights")
 YOLO_classname = os.path.join(Model_Folder, "data_classes.txt")
 log_dir = Model_Folder
-anchors_path = os.path.join(keras_path, "model_data", "yolo_anchors.txt")
-weights_path = os.path.join(keras_path, "yolo.h5")
+# anchors_path = os.path.join(keras_path, "model_data", "yolo_anchors.txt")
+anchors_path = os.path.join(keras_path, "src/keras_yolo3/model_data/text_files/yolo-tiny_anchors.txt")
+# weights_path = os.path.join(keras_path, "src/keras_yolo3/model_data/models/yolo.h5")
+weights_path = os.path.join(keras_path, "src/keras_yolo3/model_data/models/yolov3-tiny.h5")
 FLAGS = None
 
 
@@ -98,25 +101,33 @@ if __name__ == '__main__':
                         help="Display warning messages. Default is False.")
     # Parse the flags
     FLAGS = parser.parse_args()
+    FLAGS.is_tiny = True
     if not FLAGS.warnings:
         tf.logging.set_verbosity(tf.logging.ERROR)
         os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
         warnings.filterwarnings("ignore")
     np.random.seed(FLAGS.random_seed)
     log_dir = FLAGS.log_dir
-    class_names = get_classes(FLAGS.classes_file)
+    class_path = "C:\\Users\\psilva\\Documents\\GitHub\\train-your-own-yolo\\2_Training\\src\\keras_yolo3\\model_data\\text_files\\data_classes.txt"
+    # class_names = get_classes(FLAGS.classes_file)
+    class_names = get_classes(class_path)
     num_classes = len(class_names)
     # Check for tiny YOLO otherwise use normal version
+    if not FLAGS.is_tiny:
+        weights_path = "C:\\Users\\psilva\\Documents\\GitHub\\train-your-own-yolo\\2_Training\\src\\keras_yolo3\\model_data\\models\\yolo.h5"
+        anchors_path = "C:\\Users\\psilva\\Documents\\GitHub\\train-your-own-yolo\\2_Training\\src\\keras_yolo3\\model_data\\text_files\\yolo_anchors.txt"
     if FLAGS.is_tiny and FLAGS.weights_path == weights_path:
-        weights_path = os.path.join(os.path.dirname(FLAGS.weights_path), "yolo-tiny.h5")
+        # weights_path = os.path.join(os.path.dirname(FLAGS.weights_path), "yolo-tiny.h5")
+        weights_path = "C:\\Users\\psilva\\Documents\\GitHub\\train-your-own-yolo\\2_Training\\src\\keras_yolo3\\model_data\\models\\yolov3-tiny.h5"
     if FLAGS.is_tiny and FLAGS.anchors_path == anchors_path:
-        anchors_path = os.path.join(os.path.dirname(FLAGS.anchors_path), "yolo-tiny_anchors.txt")
+        # anchors_path = os.path.join(os.path.dirname(FLAGS.anchors_path), "yolo-tiny_anchors.txt")
+        anchors_path = "C:\\Users\\psilva\\Documents\\GitHub\\train-your-own-yolo\\2_Training\\src\\keras_yolo3\\model_data\\text_files\\yolo-tiny_anchors.txt"
     anchors = get_anchors(anchors_path)
     input_shape = (416, 416)    # Multiple of 32, height, width
     epoch1, epoch2 = FLAGS.epochs, FLAGS.epochs
     is_tiny_version = len(anchors) == 0     # Default setting
     if FLAGS.is_tiny:
-        model = create_tiny_model(input_shape, num_classes, freeze_body=2, weights_path=weights_path)
+        model = create_tiny_model(input_shape, anchors, freeze_body=2, weights_path=weights_path, num_classes=num_classes)
     else:
         model = create_model(input_shape, anchors, num_classes, freeze_body=2, weights_path=weights_path)
     log_dir_time = os.path.join(log_dir, "{}".format(int(time())))
@@ -126,11 +137,15 @@ if __name__ == '__main__':
     reduce_lr = ReduceLROnPlateau(monitor="val_loss", factor=0.1, patience=3, verbose=1)
     early_stopping = EarlyStopping(monitor="val_loss", min_delta=0, patience=10, verbose=1)
     val_split = FLAGS.val_split
-    with open(FLAGS.annotation_file) as f:
+    # with open(FLAGS.annotation_file) as f:
+    #     lines = f.readlines()
+    annotation_file = "C:\\Users\\psilva\\Documents\\GitHub\\train-your-own-yolo\\2_Training\src\\keras_yolo3\\model_data\\source_images\\train_images\\data_train.txt"
+    with open(annotation_file) as f:
         lines = f.readlines()
+
     # This step makes sure that the path names correspond to the local machine
-    # This is important if annotation and training are done on differnet machines (e.g, training on AWS)
-    lines = ChangeToOtherMachine(lines, remote_machine="")
+    # This is important if annotation and training are done on different machines (e.g, training on AWS)
+    # lines = changeToOtherMachine(lines, remote_machine="")
     np.random.shuffle(lines)
     num_val = int(len(lines) * val_split)
     num_train = len(lines) - num_val

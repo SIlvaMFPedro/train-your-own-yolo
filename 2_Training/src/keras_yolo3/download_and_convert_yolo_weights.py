@@ -44,7 +44,7 @@ if __name__ == '__main__':
     FLAGS = parser.parse_args()
     if not FLAGS.is_tiny:
         weights_file = "yolov3.weights"
-        h5_file = "yolo.h5"
+        h5_file = "src/keras_yolo3/model_data/models/yolo.h5"
         cfg_file = "yolov3.cfg"
         # Original URL: https://pjreddie.com/media/files/yolov3.weights
         gdrive_id = "1ENKguLZbkgvM8unU3Hq1BoFzoLeGWvE_"

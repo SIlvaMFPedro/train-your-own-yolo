@@ -167,10 +167,10 @@ def data_generator_wrapper(annotation_lines, batch_size, input_shape, anchors, n
 
 
 def main():
-    annotation_path = "model_data/data_train.txt"
+    annotation_path = "src/keras_yolo3/model_data/source_images/train_images/data_train.txt"
     log_dir = "logs/003/"
-    classes_path = "model_data/data_classes.txt"
-    anchors_path = "model_data/yolo_anchors.txt"
+    classes_path = "src/keras_yolo3/model_data/text_files/data_classes.txt"
+    anchors_path = "src/keras_yolo3/model_data/text_files/yolo_anchors.txt"
     class_names = get_classes(classes_path)
     num_classes = len(class_names)
     anchors = get_anchors(anchors_path)
@@ -182,7 +182,7 @@ def main():
                                   freeze_body=2, weights_path="model_data/yolo-tiny.h5")
     else:
         model = create_model(input_shape=input_shape, anchors=anchors, num_classes=num_classes,
-                             freeze_body=2, weights_path="model_data/yolo.h5")
+                             freeze_body=2, weights_path="src/keras_yolo3/model_data/models/yolo.h5")
     logging = TensorBoard(log_dir=log_dir)
     checkpoint = ModelCheckpoint(log_dir="checkpoint.h5", monitor="val_loss", save_weights_only=True,
                                  save_best_only=True, period=5)
