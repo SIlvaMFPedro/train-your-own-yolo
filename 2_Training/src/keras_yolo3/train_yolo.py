@@ -108,20 +108,20 @@ if __name__ == '__main__':
         warnings.filterwarnings("ignore")
     np.random.seed(FLAGS.random_seed)
     log_dir = FLAGS.log_dir
-    class_path = "C:\\Users\\psilva\\Documents\\GitHub\\train-your-own-yolo\\2_Training\\src\\keras_yolo3\\model_data\\text_files\\data_classes.txt"
+    class_path = "/home/pedro/PycharmProjects/train-your-own-yolo/2_Training/src/keras_yolo3/model_data/text_files/data_classes.txt"
     # class_names = get_classes(FLAGS.classes_file)
     class_names = get_classes(class_path)
     num_classes = len(class_names)
     # Check for tiny YOLO otherwise use normal version
     if not FLAGS.is_tiny:
-        weights_path = "C:\\Users\\psilva\\Documents\\GitHub\\train-your-own-yolo\\2_Training\\src\\keras_yolo3\\model_data\\models\\yolo.h5"
-        anchors_path = "C:\\Users\\psilva\\Documents\\GitHub\\train-your-own-yolo\\2_Training\\src\\keras_yolo3\\model_data\\text_files\\yolo_anchors.txt"
+        weights_path = "/home/pedro/PycharmProjects/train-your-own-yolo/2_Training/src/keras_yolo3/model_data/model_data/models/yolo.h5"
+        anchors_path = "/home/pedro/PycharmProjects/train-your-own-yolo/2_Training/src/keras_yolo3/model_data/text_files/yolo_anchors.txt"
     if FLAGS.is_tiny and FLAGS.weights_path == weights_path:
         # weights_path = os.path.join(os.path.dirname(FLAGS.weights_path), "yolo-tiny.h5")
-        weights_path = "C:\\Users\\psilva\\Documents\\GitHub\\train-your-own-yolo\\2_Training\\src\\keras_yolo3\\model_data\\models\\yolov3-tiny.h5"
+        weights_path = "/home/pedro/PycharmProjects/train-your-own-yolo/2_Training/src/keras_yolo3/model_data/models/yolov3-tiny.h5"
     if FLAGS.is_tiny and FLAGS.anchors_path == anchors_path:
         # anchors_path = os.path.join(os.path.dirname(FLAGS.anchors_path), "yolo-tiny_anchors.txt")
-        anchors_path = "C:\\Users\\psilva\\Documents\\GitHub\\train-your-own-yolo\\2_Training\\src\\keras_yolo3\\model_data\\text_files\\yolo-tiny_anchors.txt"
+        anchors_path = "/home/pedro/PycharmProjects/train-your-own-yolo/2_Training/src/keras_yolo3/model_data/text_files/yolo-tiny_anchors.txt"
     anchors = get_anchors(anchors_path)
     input_shape = (416, 416)    # Multiple of 32, height, width
     epoch1, epoch2 = FLAGS.epochs, FLAGS.epochs
@@ -139,7 +139,7 @@ if __name__ == '__main__':
     val_split = FLAGS.val_split
     # with open(FLAGS.annotation_file) as f:
     #     lines = f.readlines()
-    annotation_file = "C:\\Users\\psilva\\Documents\\GitHub\\train-your-own-yolo\\2_Training\src\\keras_yolo3\\model_data\\source_images\\train_images\\data_train.txt"
+    annotation_file = "/home/pedro/PycharmProjects/train-your-own-yolo/2_Training/src/keras_yolo3/model_data/source_images/train_images/data_train.txt"
     with open(annotation_file) as f:
         lines = f.readlines()
 
