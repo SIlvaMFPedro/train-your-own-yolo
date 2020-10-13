@@ -94,7 +94,7 @@ if __name__ == '__main__':
     parser.add_argument("--random_seed", type=float, default=None,
                         help="Random seed value to make script deterministic. Default is 'None', "
                              "i.e. non-deterministic.")
-    parser.add_argument("--epochs", type=int, default=51,
+    parser.add_argument("--epochs", type=int, default=20,
                         help="Number of epochs for training last layers and number of epochs for fine-tuning layers. "
                              "Default is 51.")
     parser.add_argument("--warnings", default=False, action="store_true",
