@@ -67,6 +67,9 @@ anchors_path = os.path.join(keras_path, "src/keras_yolo3/model_data/text_files/y
 weights_path = os.path.join(keras_path, "src/keras_yolo3/model_data/models/yolov3-tiny.h5")
 FLAGS = None
 
+# Check devices
+# devices = tf.config.experimental.list_physical_devices('GPU')
+# tf.config.experimental.set_memory_growth(devices[0], True)
 
 # -----------------------------
 #   MAIN
@@ -152,7 +155,7 @@ if __name__ == '__main__':
     # Train with frozen layers first, to get a stable loss
     # Adjust num epochs to your dataset. This step should be enough to obtain a decent model
     if True:
-        model.compile(optimizer=Adam(lr=1e-3), loss={"yolo_loss": lambda y_true, y_pred: y_pred})
+        model.compile(optimizer=Adam(lr=1e-4), loss={"yolo_loss": lambda y_true, y_pred: y_pred})
         batch_size = 32
         print("Train on {} samples, val on {} samples, with batch size {}.".format(num_train, num_val, batch_size))
         history = model.fit_generator(
